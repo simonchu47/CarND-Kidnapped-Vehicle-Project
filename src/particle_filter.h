@@ -46,7 +46,7 @@ class ParticleFilter {
         /**
         * Calculate the weight for one single particle
         */
-        double calculateWeight(const std::vector<LandmarkObs> &observations, double std_landmark[], const std::vector<LandmarkObs> &map_landmarks);
+        double calculateWeight(const std::vector<LandmarkObs> &observations, double std_landmark[], const Map map_landmarks);
 public:
 	
 	// Set of current particles

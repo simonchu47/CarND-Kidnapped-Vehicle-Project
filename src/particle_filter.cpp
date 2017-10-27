@@ -27,7 +27,7 @@ void ParticleFilter::init(double x, double y, double theta, double std[]) {
 	// Add random Gaussian noise to each particle.
 	// NOTE: Consult particle_filter.h for more information about this method (and others in this file).
 
-        num_particles = 50;
+        num_particles = 20;
         default_random_engine gen;
         // Creates a normal (Gaussian) distribution for x, y and theta
 	normal_distribution<double> dist_x(x, std[0]);
@@ -118,25 +118,35 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
         // Transform the measurement based on each particle
         double weight_temp; 
         weights.clear();
-        for (int i = 0; i < particles.size(); ++i) {
+        for (vector<Particle>::iterator it_p = particles.begin();
+             it_p != particles.end(); ++it_p) {
             // Prepare the vector of map landmarks
-            int index = 0;
             std::vector<LandmarkObs> landmarks;
-            for (int j = 0; j < map_landmarks.landmark_list.size(); ++j) {
-                if (dist(particles.at(i).x, particles.at(i).y, map_landmarks.landmark_list.at(j).x_f, map_landmarks.landmark_list.at(j).y_f) < sensor_range) {
+            for (vector<Map::single_landmark_s>::const_iterator it_l = map_landmarks.landmark_list.begin();
+                 it_l != map_landmarks.landmark_list.end(); ++it_l) {
+                if (dist(it_p->x, it_p->y, it_l->x_f, it_l->y_f) < sensor_range) {
                     LandmarkObs single_landmark;
-                    single_landmark.id = index;
-                    single_landmark.x = map_landmarks.landmark_list.at(j).x_f;
-                    single_landmark.y = map_landmarks.landmark_list.at(j).y_f;
+                    single_landmark.id = it_l->id_i;
+                    single_landmark.x = it_l->x_f;
+                    single_landmark.y = it_l->y_f;
                     landmarks.push_back(single_landmark);
-                    index++;
                 }
             }
-
-            std::vector<LandmarkObs> transformed_obs = transformObservation(observations, particles.at(i).x, particles.at(i).y, particles.at(i).theta);
+            
+            std::vector<LandmarkObs> transformed_obs = transformObservation(observations, it_p->x, it_p->y, it_p->theta);
             dataAssociation(landmarks, transformed_obs);
-            weight_temp = calculateWeight(transformed_obs, std_landmark, landmarks);
-            particles.at(i).weight = weight_temp;
+            std::vector<int> associations;
+            std::vector<double> sense_x;
+            std::vector<double> sense_y;
+            for (vector<LandmarkObs>::iterator it_o = transformed_obs.begin();
+                 it_o != transformed_obs.end(); ++it_o) {
+                associations.push_back(it_o->id);
+                sense_x.push_back(it_o->x);
+                sense_y.push_back(it_o->y);
+            }
+            SetAssociations(*it_p, associations, sense_x, sense_y);
+            weight_temp = calculateWeight(transformed_obs, std_landmark, map_landmarks);
+            it_p->weight = weight_temp;
             weights.push_back(weight_temp);
         }
 }
@@ -217,16 +227,16 @@ std::vector<LandmarkObs> ParticleFilter::transformObservation(const std::vector<
     return transformedObs;
 }
 
-double ParticleFilter::calculateWeight(const std::vector<LandmarkObs> &observations, double std_landmark[], const std::vector<LandmarkObs> &map_landmarks) {
+double ParticleFilter::calculateWeight(const std::vector<LandmarkObs> &observations, double std_landmark[], const Map map_landmarks) {
    double probability = 1.0;
    double std_x_std_y = std_landmark[0]*std_landmark[1];
    double std_x_2 = std_landmark[0]*std_landmark[0];
    double std_y_2 = std_landmark[1]*std_landmark[1];
-   double dif_x, dif_y, param;
+   double dif_x, dif_y, param; 
    for (vector<LandmarkObs>::const_iterator it = observations.begin();
         it != observations.end(); ++it) {
-       dif_x = it->x - map_landmarks.at(it->id).x;
-       dif_y = it->y - map_landmarks.at(it->id).y;
+       dif_x = it->x - map_landmarks.landmark_list.at(it->id - 1).x_f;
+       dif_y = it->y - map_landmarks.landmark_list.at(it->id - 1).y_f;
        param = dif_x*dif_x/2/std_x_2 + dif_y*dif_y/2/std_y_2;
        probability *= exp(-param)/2/M_PI/std_x_std_y;
    }
