@@ -38,6 +38,13 @@ class ParticleFilter {
 	// Vector of weights of all particles
 	std::vector<double> weights;
 
+        // After calculate weight, the x and y position of the max. possible particle
+        double last_max_possible_x;
+        double last_max_possible_y;
+
+        // Land marks
+        std::vector<LandmarkObs> landmarks;
+        
         /**
         * Transform the observation data to the map coordinate
         */
